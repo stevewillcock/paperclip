@@ -268,7 +268,7 @@ impl<'a> ApiObjectImpl<'a> {
                     f.write_str(": None,")?;
                 }
 
-                Ok(())
+                fmt::Result::Ok(())
             })?;
 
             if has_fields || builder.body_required {

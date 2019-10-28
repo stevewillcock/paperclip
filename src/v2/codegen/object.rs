@@ -863,7 +863,7 @@ impl<'a> Display for ApiObjectBuilder<'a> {
                 f.write_str(">,")?;
             }
 
-            Ok(())
+            fmt::Result::Ok(())
         })?;
 
         if has_fields || self.body_required {
@@ -942,7 +942,7 @@ impl Display for ApiObject {
             }
 
             f.write_str(",")?;
-            Ok(())
+            fmt::Result::Ok(())
         })?;
 
         if !self.fields().is_empty() {
