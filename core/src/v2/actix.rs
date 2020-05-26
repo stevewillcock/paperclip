@@ -3,6 +3,8 @@ use super::models::{
     Response, SecurityScheme,
 };
 use super::schema::{Apiv2Errors, Apiv2Operation, Apiv2Schema};
+#[cfg(feature = "actix-multipart")]
+use super::schema::TypedData;
 use actix_web::{
     web::{Bytes, Data, Form, Json, Path, Payload, Query},
     HttpRequest, HttpResponse, Responder,
@@ -216,6 +218,21 @@ where
                 }),
             }),
         );
+    }
+}
+
+#[cfg(feature = "actix-multipart")]
+impl OperationModifier for actix_multipart::Multipart {
+    fn update_parameter(op: &mut DefaultOperationRaw) {
+        op.parameters.push(Either::Right(Parameter {
+            description: None,
+            in_: ParameterIn::FormData,
+            name: "file_data".into(),
+            required: true,
+            data_type: Some(<actix_multipart::Multipart as TypedData>::data_type()),
+            format: <actix_multipart::Multipart as TypedData>::format(),
+            ..Default::default()
+        }));
     }
 }
 
