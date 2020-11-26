@@ -345,7 +345,13 @@ fn extract_fn_documentation(
         }
     };
     let summary = none_if_empty(summary.into_iter().collect::<String>().trim());
-    let description = none_if_empty(description.into_iter().collect::<String>().trim());
+    let description = none_if_empty(
+        description
+            .into_iter()
+            .map(|x| format!("{}\n", x))
+            .collect::<String>()
+            .trim(),
+    );
     (summary, description)
 }
 
