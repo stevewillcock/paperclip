@@ -7,10 +7,11 @@ use super::{
     },
     schema::{Apiv2Errors, Apiv2Operation, Apiv2Schema},
 };
+use crate::util::{ready, Ready};
 use actix_web::{
     http::StatusCode,
-    web::{Bytes, Data, Form, Json, Path, Payload, Query, ReqData},
-    HttpRequest, HttpResponse, Responder,
+    web::{Bytes, Data, Form, Json, Path, Payload, Query},
+    Error, HttpRequest, HttpResponse, Responder,
 };
 use pin_project::pin_project;
 
@@ -149,9 +150,6 @@ where
 impl<T> Apiv2Schema for Data<T> {}
 #[cfg(not(feature = "nightly"))]
 impl<T> OperationModifier for Data<T> {}
-impl<T: std::clone::Clone> Apiv2Schema for ReqData<T> {}
-#[cfg(not(feature = "nightly"))]
-impl<T: std::clone::Clone> OperationModifier for ReqData<T> {}
 
 macro_rules! impl_empty({ $($ty:ty),+ } => {
     $(
@@ -450,8 +448,11 @@ impl<T: Responder> Apiv2Schema for ResponderWrapper<T> {}
 impl<T: Responder> OperationModifier for ResponderWrapper<T> {}
 
 impl<T: Responder> Responder for ResponderWrapper<T> {
+    type Error = T::Error;
+    type Future = T::Future;
+
     #[inline]
-    fn respond_to(self, req: &HttpRequest) -> HttpResponse {
+    fn respond_to(self, req: &HttpRequest) -> Self::Future {
         self.0.respond_to(req)
     }
 }
@@ -463,8 +464,11 @@ impl<T: Responder> Responder for ResponderWrapper<T> {
 pub struct ResponseWrapper<T, H>(#[pin] pub T, pub H);
 
 impl<T: Responder, H> Responder for ResponseWrapper<T, H> {
+    type Error = <T as Responder>::Error;
+    type Future = <T as Responder>::Future;
+
     #[inline]
-    fn respond_to(self, req: &HttpRequest) -> HttpResponse {
+    fn respond_to(self, req: &HttpRequest) -> Self::Future {
         self.0.respond_to(req)
     }
 }
@@ -592,20 +596,19 @@ macro_rules! json_with_status {
         where
             T: Serialize + Apiv2Schema,
         {
-            fn respond_to(self, _: &HttpRequest) -> HttpResponse {
+            type Error = Error;
+            type Future = Ready<Result<HttpResponse, Error>>;
+
+            fn respond_to(self, _: &HttpRequest) -> Self::Future {
                 let status: StatusCode = $status;
                 let body = match serde_json::to_string(&self.0) {
                     Ok(body) => body,
-                    Err(e) => {
-                        return HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-                            .content_type("text/plain")
-                            .body(e.to_string())
-                    }
+                    Err(e) => return ready(Err(e.into())),
                 };
 
-                HttpResponse::build(status)
+                ready(Ok(HttpResponse::build(status)
                     .content_type("application/json")
-                    .body(body)
+                    .body(body)))
             }
         }
 
@@ -656,10 +659,13 @@ impl fmt::Display for NoContent {
 }
 
 impl Responder for NoContent {
-    fn respond_to(self, _: &HttpRequest) -> HttpResponse {
-        HttpResponse::build(StatusCode::NO_CONTENT)
+    type Error = Error;
+    type Future = Ready<Result<HttpResponse, Error>>;
+
+    fn respond_to(self, _: &HttpRequest) -> Self::Future {
+        ready(Ok(HttpResponse::build(StatusCode::NO_CONTENT)
             .content_type("application/json")
-            .finish()
+            .finish()))
     }
 }
 
