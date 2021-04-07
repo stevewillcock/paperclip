@@ -24,7 +24,8 @@ heck = { version = "0.3", optional = true }
 http = { version = "0.2", optional = true }
 itertools = "0.10"
 log = { version = "0.4", optional = true }
-paperclip-actix = { path = "plugins/actix-web", version = "0.3.0", optional = true }
+paperclip-actix = { path = "plugins/actix-web", version = "0.4.0", optional = true }
+paperclip-actix3 = { path = "plugins/actix-web3", version = "0.3.0", optional = true }
 paperclip-core = { path = "core", version = "0.3.0" }
 paperclip-macros = { path = "macros", version = "0.4.0", optional = true }
 parking_lot = { version = ">=0.10,<0.12" }
@@ -60,12 +61,12 @@ env_logger = "0.8"
 # actix-web support
 actix = ["actix4"]
 actix-nightly = ["actix4-nightly"]
-actix2-nightly = ["actix2", "paperclip-actix/nightly"]
-actix3-nightly = ["actix3", "paperclip-actix/nightly"]
+actix2-nightly = ["actix2", "paperclip-actix3/nightly"]
+actix3-nightly = ["actix3", "paperclip-actix3/nightly"]
 actix4-nightly = ["actix4", "paperclip-actix/nightly"]
-actix2 = ["actix-base", "paperclip-actix/actix2"]
-actix3 = ["actix-base", "paperclip-actix/actix3"]
-actix4 = ["actix-base", "paperclip-actix/actix4"]
+actix2 = ["actix-base", "paperclip-actix3/actix2"]
+actix3 = ["actix-base", "paperclip-actix3/actix3"]
+actix4 = ["actix-base", "paperclip-actix"]
 actix-base = ["v2", "paperclip-macros/actix"]
 
 # OpenAPI support (v2 and codegen)
@@ -82,12 +83,15 @@ rust_decimal = ["paperclip-core/rust_decimal"]
 uuid = ["paperclip-core/uuid"]
 serde_qs = ["paperclip-core/serde_qs"]
 
+# default = ["actix4"]
+
 [workspace]
 members = [
     ".",
     "core",
     "macros",
     "plugins/actix-web",
+    "plugins/actix-web3",
 ]
 
 [[test]]

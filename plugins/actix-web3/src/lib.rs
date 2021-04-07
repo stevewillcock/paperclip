@@ -2,11 +2,15 @@
 extern crate actix_web2 as actix_web;
 #[cfg(feature = "actix3")]
 extern crate actix_web3 as actix_web;
-#[cfg(feature = "actix4")]
-extern crate actix_web4 as actix_web;
 
-use super::web::{Route, RouteWrapper, ServiceConfig};
-use super::{Mountable, SpecHandler};
+pub mod web;
+
+pub use self::web::{Resource, Route, Scope};
+pub use paperclip_macros::{
+    api_v2_errors, api_v2_operation, delete, get, post, put, Apiv2Schema, Apiv2Security,
+};
+
+use self::web::{RouteWrapper, ServiceConfig};
 use actix_service::ServiceFactory;
 use actix_web::{
     dev::{HttpServiceFactory, MessageBody, ServiceRequest, ServiceResponse, Transform},
@@ -14,23 +18,84 @@ use actix_web::{
     Error,
 };
 use futures::future::{ok as fut_ok, Ready};
-use paperclip_core::v2::models::{DefaultApiRaw, SecurityScheme};
+use paperclip_core::v2::models::{
+    DefaultApiRaw, DefaultOperationRaw, DefaultPathItemRaw, DefaultSchemaRaw, HttpMethod,
+    SecurityScheme,
+};
 use parking_lot::RwLock;
 
-use std::{fmt::Debug, future::Future, sync::Arc};
+use std::{collections::BTreeMap, fmt::Debug, future::Future, sync::Arc};
 
 /// Wrapper for [`actix_web::App`](https://docs.rs/actix-web/*/actix_web/struct.App.html).
 pub struct App<T, B> {
-    pub(super) spec: Arc<RwLock<DefaultApiRaw>>,
-    pub(super) inner: Option<actix_web::App<T, B>>,
+    spec: Arc<RwLock<DefaultApiRaw>>,
+    inner: Option<actix_web::App<T, B>>,
+}
+
+/// Extension trait for actix-web applications.
+pub trait OpenApiExt<T, B> {
+    type Wrapper;
+
+    /// Consumes this app and produces its wrapper to start tracking
+    /// paths and their corresponding operations.
+    fn wrap_api(self) -> Self::Wrapper;
+
+    /// Same as `wrap_api` initializing with provided specification
+    /// defaults. Useful for defining Api properties outside of definitions and
+    /// paths.
+    fn wrap_api_with_spec(self, spec: DefaultApiRaw) -> Self::Wrapper;
+}
+
+impl<T, B> OpenApiExt<T, B> for actix_web::App<T, B> {
+    type Wrapper = App<T, B>;
+
+    fn wrap_api(self) -> Self::Wrapper {
+        App {
+            spec: Arc::new(RwLock::new(DefaultApiRaw::default())),
+            inner: Some(self),
+        }
+    }
+
+    fn wrap_api_with_spec(self, spec: DefaultApiRaw) -> Self::Wrapper {
+        App {
+            spec: Arc::new(RwLock::new(spec)),
+            inner: Some(self),
+        }
+    }
+}
+
+/// Indicates that this thingmabob has a path and a bunch of definitions and operations.
+pub trait Mountable {
+    /// Where this thing gets mounted.
+    fn path(&self) -> &str;
+
+    /// Map of HTTP methods and the associated API operations.
+    fn operations(&mut self) -> BTreeMap<HttpMethod, DefaultOperationRaw>;
+
+    /// The definitions recorded by this object.
+    fn definitions(&mut self) -> BTreeMap<String, DefaultSchemaRaw>;
+
+    /// The security definitions recorded by this object.
+    fn security_definitions(&mut self) -> BTreeMap<String, SecurityScheme>;
+
+    /// Updates the given map of operations with operations tracked by this object.
+    ///
+    /// **NOTE:** Overriding implementations must ensure that the `PathItem`
+    /// is normalized before updating the input map.
+    fn update_operations(&mut self, map: &mut BTreeMap<String, DefaultPathItemRaw>) {
+        let op_map = map
+            .entry(self.path().into())
+            .or_insert_with(Default::default);
+        op_map.methods.extend(self.operations().into_iter());
+    }
 }
 
 impl<T, B> App<T, B>
 where
     B: MessageBody,
     T: ServiceFactory<
-        ServiceRequest,
         Config = (),
+        Request = ServiceRequest,
         Response = ServiceResponse<B>,
         Error = Error,
         InitError = (),
@@ -104,10 +169,10 @@ where
     /// **NOTE:** This doesn't affect spec generation.
     pub fn default_service<F, U>(mut self, f: F) -> Self
     where
-        F: actix_service::IntoServiceFactory<U,ServiceRequest>,
+        F: actix_service::IntoServiceFactory<U>,
         U: ServiceFactory<
-                ServiceRequest,
                 Config = (),
+                Request = ServiceRequest,
                 Response = ServiceResponse,
                 Error = Error,
                 InitError = (),
@@ -138,8 +203,8 @@ where
         mw: M,
     ) -> App<
         impl ServiceFactory<
-            ServiceRequest,
             Config = (),
+            Request = ServiceRequest,
             Response = ServiceResponse<B1>,
             Error = Error,
             InitError = (),
@@ -149,7 +214,7 @@ where
     where
         M: Transform<
             T::Service,
-            ServiceRequest,
+            Request = ServiceRequest,
             Response = ServiceResponse<B1>,
             Error = Error,
             InitError = (),
@@ -170,8 +235,8 @@ where
         mw: F,
     ) -> App<
         impl ServiceFactory<
-            ServiceRequest,
             Config = (),
+            Request = ServiceRequest,
             Response = ServiceResponse<B1>,
             Error = Error,
             InitError = (),
@@ -180,7 +245,7 @@ where
     >
     where
         B1: MessageBody,
-        F: Fn(ServiceRequest, &T::Service) -> R + Clone,
+        F: FnMut(ServiceRequest, &mut T::Service) -> R + Clone,
         R: Future<Output = Result<ServiceResponse<B1>, Error>>,
     {
         App {
@@ -241,7 +306,10 @@ where
     }
 }
 
-impl actix_web::dev::Handler<(), Ready<Result<HttpResponse, Error>>>
+#[derive(Clone)]
+struct SpecHandler(Arc<RwLock<DefaultApiRaw>>);
+
+impl actix_web::dev::Factory<(), Ready<Result<HttpResponse, Error>>, Result<HttpResponse, Error>>
     for SpecHandler
 {
     fn call(&self, _: ()) -> Ready<Result<HttpResponse, Error>> {
