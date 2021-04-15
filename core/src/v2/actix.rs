@@ -1,3 +1,6 @@
+#[cfg(feature = "actix-multipart4")]
+use actix_multipart4 as actix_multipart;
+
 #[cfg(feature = "actix-multipart")]
 use super::schema::TypedData;
 use super::{
