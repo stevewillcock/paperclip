@@ -1,5 +1,8 @@
 //! Traits used for code and spec generation.
 
+#[cfg(feature = "actix-multipart4")]
+use actix_multipart4 as actix_multipart;
+
 use super::models::{
     DataType, DataTypeFormat, DefaultOperationRaw, DefaultSchemaRaw, Either, Resolvable,
     SecurityScheme,
