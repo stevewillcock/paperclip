@@ -6,7 +6,7 @@ pub use actix_web::web::{
 };
 
 use crate::Mountable;
-use actix_service::{IntoServiceFactory, ServiceFactory};
+use actix_service::ServiceFactory;
 use actix_web::{
     dev::{AppService, Handler, HttpServiceFactory, ServiceRequest, ServiceResponse, Transform},
     guard::Guard,
@@ -68,21 +68,6 @@ where
 {
     fn register(self, config: &mut AppService) {
         self.inner.register(config)
-    }
-}
-
-impl<T> IntoServiceFactory<T, ServiceRequest> for Resource<actix_web::Resource<T>>
-where
-    T: ServiceFactory<
-            ServiceRequest,
-            Config = (),
-            Response = ServiceResponse,
-            Error = Error,
-            InitError = (),
-        > + 'static,
-{
-    fn into_factory(self) -> T {
-        self.inner.into_factory()
     }
 }
 

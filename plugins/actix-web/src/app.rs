@@ -7,8 +7,8 @@ use super::{
 use actix_service::ServiceFactory;
 use actix_web::{
     dev::{HttpServiceFactory, MessageBody, ServiceRequest, ServiceResponse, Transform},
-    web::HttpResponse,
-    Error,
+    web::Json,
+    error::Error,
 };
 use futures::future::{ok as fut_ok, Ready};
 use paperclip_core::v2::models::{DefaultApiRaw, SecurityScheme};
@@ -238,8 +238,9 @@ where
     }
 }
 
-impl actix_web::dev::Handler<(), Ready<Result<HttpResponse, Error>>> for SpecHandler {
-    fn call(&self, _: ()) -> Ready<Result<HttpResponse, Error>> {
-        fut_ok(HttpResponse::Ok().json(&*self.0.read()))
+impl actix_web::dev::Handler<(), Ready<Result<Json<DefaultApiRaw>, Error>>> for SpecHandler {
+    fn call(&self, _: ()) -> Ready<Result<Json<DefaultApiRaw>, Error>> {
+        let content = &*self.0.read();
+        fut_ok(Json(content.clone()))
     }
 }
