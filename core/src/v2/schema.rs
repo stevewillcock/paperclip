@@ -3,6 +3,12 @@
 #[cfg(feature = "actix-multipart4")]
 use actix_multipart4 as actix_multipart;
 
+#[cfg(feature = "actix-files4")]
+use actix_files4 as actix_files;
+
+#[cfg(feature = "actix-session4")]
+use actix_session4 as actix_session;
+
 use super::models::{
     DataType, DataTypeFormat, DefaultOperationRaw, DefaultSchemaRaw, Either, Resolvable,
     SecurityScheme,
@@ -189,15 +195,15 @@ impl_type_simple!(u64, DataType::Integer, DataTypeFormat::Int64);
 impl_type_simple!(u128, DataType::Integer, DataTypeFormat::Int64);
 impl_type_simple!(usize, DataType::Integer, DataTypeFormat::Int64);
 
-#[cfg(feature = "actix-multipart")]
+#[cfg(any(feature = "actix-multipart", feature = "actix-multipart4"))]
 impl_type_simple!(
     actix_multipart::Multipart,
     DataType::File,
     DataTypeFormat::Binary
 );
-#[cfg(feature = "actix-session")]
+#[cfg(any(feature = "actix-session", feature = "actix-session4"))]
 impl_type_simple!(actix_session::Session);
-#[cfg(feature = "actix-files")]
+#[cfg(any(feature = "actix-files", feature = "actix-files4"))]
 impl_type_simple!(
     actix_files::NamedFile,
     DataType::File,

@@ -1,8 +1,15 @@
 #[cfg(feature = "actix-multipart4")]
 use actix_multipart4 as actix_multipart;
 
-#[cfg(feature = "actix-multipart")]
+#[cfg(feature = "actix-files4")]
+use actix_files4 as actix_files;
+
+#[cfg(feature = "actix-session4")]
+use actix_session4 as actix_session;
+
+#[cfg(any(feature = "actix-multipart", feature = "actix-multipart4"))]
 use super::schema::TypedData;
+
 use super::{
     models::{
         DefaultOperationRaw, DefaultResponseRaw, DefaultSchemaRaw, Either, Items, Parameter,
@@ -275,7 +282,7 @@ where
     }
 }
 
-#[cfg(feature = "actix-multipart")]
+#[cfg(any(feature = "actix-multipart", feature = "actix-multipart4"))]
 impl OperationModifier for actix_multipart::Multipart {
     fn update_parameter(op: &mut DefaultOperationRaw) {
         op.parameters.push(Either::Right(Parameter {
@@ -290,12 +297,12 @@ impl OperationModifier for actix_multipart::Multipart {
     }
 }
 
-#[cfg(feature = "actix-session")]
+#[cfg(any(feature = "actix-session", feature = "actix-session4"))]
 impl OperationModifier for actix_session::Session {
     fn update_definitions(_map: &mut BTreeMap<String, DefaultSchemaRaw>) {}
 }
 
-#[cfg(feature = "actix-files")]
+#[cfg(any(feature = "actix-files", feature = "actix-files4"))]
 impl OperationModifier for actix_files::NamedFile {
     fn update_definitions(_map: &mut BTreeMap<String, DefaultSchemaRaw>) {}
 }

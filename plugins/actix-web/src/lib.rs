@@ -26,6 +26,9 @@ pub mod app3;
 #[cfg(not(feature = "actix4"))]
 pub use app3 as app;
 
+#[cfg(feature = "actix-files4")]
+use actix_files4 as actix_files;
+
 pub use self::{
     app::App,
     web::{Resource, Route, Scope},
@@ -102,3 +105,17 @@ pub trait Mountable {
 
 #[derive(Clone)]
 struct SpecHandler(Arc<RwLock<DefaultApiRaw>>);
+
+#[cfg(any(feature = "actix-files", feature = "actix-files4"))]
+impl Mountable for actix_files::Files {
+    fn path(&self) -> &str { "" }
+
+    /// Map of HTTP methods and the associated API operations.
+    fn operations(&mut self) -> BTreeMap<HttpMethod, DefaultOperationRaw> { BTreeMap::default() }
+
+    /// The definitions recorded by this object.
+    fn definitions(&mut self) -> BTreeMap<String, DefaultSchemaRaw> { BTreeMap::default() }
+
+    /// The security definitions recorded by this object.
+    fn security_definitions(&mut self) -> BTreeMap<String, SecurityScheme> { BTreeMap::default() }
+}
